@@ -8,29 +8,27 @@ void UTFC_GameStatics::EnsureDataTablesLoaded()
 {
 	if (!ArmorDataTable)
 	{
-		static ConstructorHelpers::FObjectFinder<UDataTable> ArmorDT(TEXT("DataTable'/Game/Data/DT_ArmorTypes.DT_ArmorTypes'"));
-		if (ArmorDT.Succeeded())
+		ArmorDataTable = Cast<UDataTable>(StaticLoadObject(
+			UDataTable::StaticClass(), nullptr,
+			TEXT("/Game/Data/DT_ArmorTypes.DT_ArmorTypes")
+		));
+
+		if (!ArmorDataTable)
 		{
-			ArmorDataTable = ArmorDT.Object;
-			UE_LOG(LogTemp, Warning, TEXT("✅ Armor DataTable loaded"));
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("❌ Failed to load Armor DataTable"));
+			UE_LOG(LogTemp, Error, TEXT("❌ Impossible de charger DT_ArmorTypes."));
 		}
 	}
 
 	if (!ClassDataTable)
 	{
-		static ConstructorHelpers::FObjectFinder<UDataTable> ClassDT(TEXT("DataTable'/Game/Data/DT_PlayerClasses.DT_PlayerClasses'"));
-		if (ClassDT.Succeeded())
+		ClassDataTable = Cast<UDataTable>(StaticLoadObject(
+			UDataTable::StaticClass(), nullptr,
+			TEXT("/Game/Data/DT_PlayerClasses.DT_PlayerClasses")
+		));
+
+		if (!ClassDataTable)
 		{
-			ClassDataTable = ClassDT.Object;
-			UE_LOG(LogTemp, Warning, TEXT("✅ Class DataTable loaded"));
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("❌ Failed to load Class DataTable"));
+			UE_LOG(LogTemp, Error, TEXT("❌ Impossible de charger DT_PlayerClasses."));
 		}
 	}
 }
