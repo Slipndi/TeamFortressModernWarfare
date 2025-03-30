@@ -7,8 +7,9 @@
 #include "InputMappingContext.h"
 #include "InputAction.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Structs/FPlayerClassData.h"
-#include "TFModerneWarfare/Characters/TFC_PlayerBase.h"
+#include "../Structs/FPlayerClassData.h"
+#include "TFModerneWarfare/Characters/Player/TFC_PlayerBase.h"
+#include "TFModerneWarfare/Characters/Components/Movement/TFC_MovementComponent.h"
 
 UTFC_InputManagerComponent::UTFC_InputManagerComponent()
 {
@@ -21,6 +22,7 @@ void UTFC_InputManagerComponent::BeginPlay()
 
 	OwnerPawn = Cast<APawn>(GetOwner());
 	if (!OwnerPawn) return;
+	CachedMovementComponent = OwnerPawn->FindComponentByClass<UTFC_MovementComponent>();
 
 	OwnerController = Cast<APlayerController>(OwnerPawn->GetController());
 	if (!OwnerController || !InputConfig) return;
@@ -95,82 +97,35 @@ void UTFC_InputManagerComponent::StopJump(const FInputActionValue& Value)
 
 void UTFC_InputManagerComponent::StartSprint(const FInputActionValue& Value)
 {
-	ACharacter* Character = Cast<ACharacter>(OwnerPawn);
-	ATFC_PlayerBase* Player = Cast<ATFC_PlayerBase>(Character);
-	if (Player)
+	if (CachedMovementComponent)
 	{
-		Player->MovementState = EMovementState::Sprinting;
-		Character->GetCharacterMovement()->MaxWalkSpeed = Player->FinalSprintSpeed;
+		CachedMovementComponent->StartSprint();
 	}
 }
 
 void UTFC_InputManagerComponent::StopSprint(const FInputActionValue& Value)
 {
-	ACharacter* Character = Cast<ACharacter>(OwnerPawn);
-	ATFC_PlayerBase* Player = Cast<ATFC_PlayerBase>(Character);
-	if (Player)
+	if (CachedMovementComponent)
 	{
-		Player->MovementState = EMovementState::Standing;
-		Character->GetCharacterMovement()->MaxWalkSpeed = Player->FinalWalkSpeed;
+		CachedMovementComponent->StopSprint();
 	}
 }
 
 void UTFC_InputManagerComponent::HandleCrouchOrSlide(const FInputActionValue& /*Value*/)
 {
 	UE_LOG(LogTemp, Warning, TEXT("⏺ [Input] CrouchOrSlide Triggered"));
-
-	ATFC_PlayerBase* Player = Cast<ATFC_PlayerBase>(OwnerPawn);
-	if (!Player) return;
-
-	auto MoveComp = Player->GetCharacterMovement();
-
-	switch (Player->MovementState)
+	if (CachedMovementComponent)
 	{
-	case EMovementState::Sprinting:
-		{
-			Player->MovementState = EMovementState::Sliding;
-			const FPlayerClassData* ClassData = Player->GetClassData(); 
-			if (!ClassData) return;
-
-			MoveComp->BrakingFrictionFactor = 0.f;
-			MoveComp->Velocity += Player->GetActorForwardVector() * ClassData->SlideImpulse;
-
-			Player->GetWorldTimerManager().SetTimer(
-				Player->SlideTimerHandle, Player, &ATFC_PlayerBase::EndSlide,
-				ClassData->SlideDuration, false
-			);
-
-			UE_LOG(LogTemp, Warning, TEXT("✅ [Slide] lancé pour %.2fs"), ClassData->SlideDuration);
-			break;
-		}
-
-	case EMovementState::Standing:
-		{
-			Player->MovementState = EMovementState::Crouching;
-			Player->Crouch();
-			UE_LOG(LogTemp, Warning, TEXT("✅ [Crouch] debout → accroupi"));
-			break;
-		}
-
-	default:
-		{
-			UE_LOG(LogTemp, Warning, TEXT("ℹ️ [Crouch] état ignoré : %d"), (int32)Player->MovementState);
-			break;
-		}
+		CachedMovementComponent->HandleCrouchOrSlide();
 	}
 }
+
 
 void UTFC_InputManagerComponent::HandleUnCrouch(const FInputActionValue& /*Value*/)
 {
-	ATFC_PlayerBase* Player = Cast<ATFC_PlayerBase>(OwnerPawn);
-	if (!Player) return;
-
-	if (Player->MovementState == EMovementState::Crouching || Player->MovementState == EMovementState::Sliding)
+	if (CachedMovementComponent)
 	{
-		Player->UnCrouch();
-		Player->MovementState = EMovementState::Standing;
-		Player->GetCharacterMovement()->BrakingFrictionFactor = 2.f;
-
-		UE_LOG(LogTemp, Warning, TEXT("⬆️ [Crouch] relâché → debout"));
+		CachedMovementComponent->HandleUnCrouch();
 	}
 }
+

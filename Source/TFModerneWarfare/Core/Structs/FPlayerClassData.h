@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
+#include "TFModerneWarfare/Core/Enums/EArmorType.h"
 #include "TFModerneWarfare/Core/Enums/EPlayerClass.h"
 #include "FPlayerClassData.generated.h" 
 
@@ -42,4 +43,7 @@ struct FPlayerClassData : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float SlideDuration = 0.75f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	EArmorType ArmorType = EArmorType::None;
 };

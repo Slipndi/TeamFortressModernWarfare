@@ -28,6 +28,9 @@ private:
 	UPROPERTY()
 	class APawn* OwnerPawn;
 
+	UPROPERTY()
+	class UTFC_MovementComponent* CachedMovementComponent;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	UTFC_InputConfig* InputConfig;
 

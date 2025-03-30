@@ -1,7 +1,7 @@
-﻿#include "TFC_PlayerController.h"
+﻿#include "TFC_Playercontroller.h"
 #include "EnhancedInputComponent.h"
-#include "TFModerneWarfare/Characters/TFC_PlayerBase.h"
-#include "TFModerneWarfare/UI/WBP_DebugMovementHUD.h"
+#include "TFModerneWarfare/Characters/Player/TFC_PlayerBase.h"
+#include "TFModerneWarfare/UI/Widgets/WBP_DebugMovementHUD.h"
 
 ATFC_PlayerController::ATFC_PlayerController()
 {
@@ -22,8 +22,11 @@ void ATFC_PlayerController::BeginPlay()
 			HUDWidget = CreateWidget<UWBP_DebugMovementHUD>(this, HUDWidgetClass);
 			if (HUDWidget)
 			{
-				HUDWidget->AddToViewport();
-				HUDWidget->SetPlayer(Cast<ATFC_PlayerBase>(GetPawn()));
+				if (!HUDWidget->IsInViewport())
+				{
+					HUDWidget->AddToViewport();
+					HUDWidget->SetPlayer(Cast<ATFC_PlayerBase>(GetPawn()));
+				}
 			}
 		}
 		else

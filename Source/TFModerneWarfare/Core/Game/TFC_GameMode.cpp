@@ -1,8 +1,8 @@
 ﻿#include "TFC_GameMode.h"
-#include "TFC_Playercontroller.h"
+#include "../Controller/TFC_Playercontroller.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
-#include "TFModerneWarfare/Characters/TFC_PlayerBase.h"
+#include "TFModerneWarfare/Characters/Player/TFC_PlayerBase.h"
 
 ATFC_GameMode::ATFC_GameMode()
 {
