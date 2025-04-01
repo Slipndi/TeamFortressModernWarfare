@@ -146,6 +146,13 @@ void UTFC_HealthComponent::OnRep_Death()
 	if (bIsDead)
 	{
 		OnDeath.Broadcast();
+
+		// 🔁 Désactiver le joueur côté client
+		if (ATFC_PlayerBase* Player = Cast<ATFC_PlayerBase>(GetOwner()))
+		{
+			Player->HandleLocalDeath();
+		}
+
 		UE_LOG(LogHealth, Warning, TEXT("[REPLICATED DEATH] %s is DEAD (client)."), *GetOwner()->GetName());
 	}
 }

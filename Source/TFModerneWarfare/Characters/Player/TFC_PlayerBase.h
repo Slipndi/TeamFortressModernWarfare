@@ -41,6 +41,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	UTFC_MovementComponent* GetMovementComponentCustom() const { return MovementComponent; }
 
+	/** Applique localement les effets visuels de la mort (désactivation, hide mesh...) */
+	UFUNCTION()
+	void HandleLocalDeath();
+
 protected:
 	virtual void BeginPlay() override;
 

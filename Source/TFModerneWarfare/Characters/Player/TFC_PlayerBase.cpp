@@ -77,3 +77,24 @@ bool ATFC_PlayerBase::CanSprint() const
 	if (!HealthComponent || HealthComponent->IsDead()) return false;
 	return true;
 }
+
+void ATFC_PlayerBase::HandleLocalDeath()
+{
+	// 🔇 Désactiver input
+	if (AController* PC = GetController())
+	{
+		DisableInput(Cast<APlayerController>(PC));
+	}
+
+	// 🚫 Désactiver collision capsule
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// 🙈 Cacher le mesh (en attendant un ragdoll futur)
+	if (GetMesh())
+	{
+		GetMesh()->SetVisibility(false, true);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("☠️ [PlayerBase] %s: local death handled (input/collision hidden)"), *GetName());
+}
+
