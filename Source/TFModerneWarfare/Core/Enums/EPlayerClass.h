@@ -7,5 +7,7 @@ enum class EPlayerClass : uint8
 {
 	Soldier UMETA(DisplayName = "Soldier"),
 	Medic UMETA(DisplayName = "Medic"),
-	Scout UMETA(DisplayName = "Scout")
+	Scout UMETA(DisplayName = "Scout"),
+	None UMETA(DisplayName = "None"),
+	_MAX UMETA(Hidden)
 };

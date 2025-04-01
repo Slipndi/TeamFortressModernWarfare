@@ -8,5 +8,7 @@ enum class EMovementState : uint8
 	Standing	UMETA(DisplayName = "Standing"),
 	Sprinting	UMETA(DisplayName = "Sprinting"),
 	Crouching	UMETA(DisplayName = "Crouching"),
-	Sliding		UMETA(DisplayName = "Sliding")
+	Sliding		UMETA(DisplayName = "Sliding"),
+	None        UMETA(DisplayName = "None"),
+	_MAX UMETA(Hidden)
 };

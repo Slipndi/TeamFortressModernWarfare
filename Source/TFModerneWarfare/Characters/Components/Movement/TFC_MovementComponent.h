@@ -4,6 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "TFModerneWarfare/Core/Enums/EMovementState.h"
 #include "Net/UnrealNetwork.h"
+#include "TFModerneWarfare/Core/Structs/FMovementFrame.h"
 
 #include "TFC_MovementComponent.generated.h"
 
@@ -58,6 +59,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
 	EMovementState MovementState = EMovementState::Standing;
 
+	UFUNCTION(Server, Reliable)
+	void ServerUpdateMovementState(EMovementState NewState);
+
 
 private:
 	// 🔒 Référence au pawn propriétaire
@@ -70,6 +74,14 @@ private:
 	void TickServerMovement();
 	void TickClientMovement(float DeltaTime);
 
+	TArray<FMovementFrame> MovementBuffer;
+	const int32 MaxBufferSize = 50;
+
+	bool bWasInAir = false;
+
+	UPROPERTY()
+	class UTFC_InputManagerComponent* CachedInputManager = nullptr;
+
 protected:
 	// SERVER-AUTHORITATIVE //
 	UPROPERTY(ReplicatedUsing = OnRep_ServerState) FVector ServerPosition;
@@ -80,6 +92,12 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_ServerState)
     EMovementState ServerMovementState;
 
+	UPROPERTY(ReplicatedUsing = OnRep_ServerValidatedFrame)
+	FMovementFrame ReplicatedServerFrame;
+	
+	UFUNCTION()
+	void OnRep_ServerValidatedFrame();
+	
 	UFUNCTION()
 	void OnRep_ServerState();
 
@@ -117,9 +135,24 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|Replication")
 	float VisualSpeedMultiplier = 1.1f;
 
+	UPROPERTY(EditDefaultsOnly, Category="Movement|Replication")
+	float MaxZCorrectionThreshold = 200.f;
+
 public:
 	// Override obligatoire pour que nos variables soient répliquées
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+private:
+	/** Frame serveur validée (servira pour rollback client) */
+	FMovementFrame LastValidatedServerFrame;
+
+	/** Index de validation pour la synchronisation */
+	int32 ServerFrameIndex = 0;
+
+	/** Pour debug visuel dans les logs */
+	FString FormatMovementFrame(const FMovementFrame& Frame) const;
+
+	int32 ClientFrameIndex = 0;
 
 };

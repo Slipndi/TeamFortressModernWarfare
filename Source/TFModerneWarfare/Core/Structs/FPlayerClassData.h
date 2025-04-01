@@ -46,4 +46,10 @@ struct FPlayerClassData : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	EArmorType ArmorType = EArmorType::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxHealth = 100.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MaxArmor = 100.0f;
 };

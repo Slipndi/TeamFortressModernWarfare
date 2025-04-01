@@ -4,6 +4,7 @@
 #include "InputActionValue.h"
 #include "GameFramework/Character.h"
 #include "TFModerneWarfare/Characters/Components/Armor/TFC_ArmorComponent.h"
+#include "TFModerneWarfare/Characters/Components/Health/TFC_HealthComponent.h"
 #include "TFModerneWarfare/Core/Enums/EPlayerClass.h"
 #include "TFModerneWarfare/Core/Structs/FPlayerClassData.h"
 #include "TFC_PlayerBase.generated.h"
@@ -31,6 +32,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Class")
 	UDataTable* ClassDataTable;
 
+	UFUNCTION()
+	EPlayerClass GetPlayerClass() const { return PlayerClassType; }
+	
+	UFUNCTION(BlueprintCallable)
+	bool CanSprint() const;
+
+	UFUNCTION(BlueprintCallable)
+	UTFC_MovementComponent* GetMovementComponentCustom() const { return MovementComponent; }
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -45,4 +55,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UTFC_ArmorComponent* ArmorComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UTFC_HealthComponent* HealthComponent;
 };

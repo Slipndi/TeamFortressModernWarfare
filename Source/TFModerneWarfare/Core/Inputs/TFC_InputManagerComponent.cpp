@@ -32,6 +32,8 @@ void UTFC_InputManagerComponent::BeginPlay()
 
 void UTFC_InputManagerComponent::SetupEnhancedInput()
 {
+	if (!IsValid(InputConfig)) return;
+
 	if (ULocalPlayer* LocalPlayer = OwnerController->GetLocalPlayer())
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer))
@@ -43,17 +45,32 @@ void UTFC_InputManagerComponent::SetupEnhancedInput()
 
 	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(OwnerController->InputComponent))
 	{
-		EIC->BindAction(InputConfig->IA_Move, ETriggerEvent::Triggered, this, &UTFC_InputManagerComponent::Move);
-		EIC->BindAction(InputConfig->IA_Look, ETriggerEvent::Triggered, this, &UTFC_InputManagerComponent::Look);
-		EIC->BindAction(InputConfig->IA_Jump, ETriggerEvent::Started, this, &UTFC_InputManagerComponent::StartJump);
-        EIC->BindAction(InputConfig->IA_Jump, ETriggerEvent::Completed, this, &UTFC_InputManagerComponent::StopJump);
-		EIC->BindAction(InputConfig->IA_Sprint, ETriggerEvent::Started, this, &UTFC_InputManagerComponent::StartSprint);
-		EIC->BindAction(InputConfig->IA_Sprint, ETriggerEvent::Completed, this, &UTFC_InputManagerComponent::StopSprint);
-		EIC->BindAction(InputConfig->IA_CrouchSlide, ETriggerEvent::Started, this, &UTFC_InputManagerComponent::HandleCrouchOrSlide);
-		EIC->BindAction(InputConfig->IA_CrouchSlide, ETriggerEvent::Completed, this, &UTFC_InputManagerComponent::HandleUnCrouch);
+		if (InputConfig->IA_Move)
+			EIC->BindAction(InputConfig->IA_Move, ETriggerEvent::Triggered, this, &UTFC_InputManagerComponent::Move);
 
+		if (InputConfig->IA_Look)
+			EIC->BindAction(InputConfig->IA_Look, ETriggerEvent::Triggered, this, &UTFC_InputManagerComponent::Look);
+
+		if (InputConfig->IA_Jump)
+		{
+			EIC->BindAction(InputConfig->IA_Jump, ETriggerEvent::Started, this, &UTFC_InputManagerComponent::StartJump);
+			EIC->BindAction(InputConfig->IA_Jump, ETriggerEvent::Completed, this, &UTFC_InputManagerComponent::StopJump);
+		}
+
+		if (InputConfig->IA_Sprint)
+		{
+			EIC->BindAction(InputConfig->IA_Sprint, ETriggerEvent::Started, this, &UTFC_InputManagerComponent::StartSprint);
+			EIC->BindAction(InputConfig->IA_Sprint, ETriggerEvent::Completed, this, &UTFC_InputManagerComponent::StopSprint);
+		}
+
+		if (InputConfig->IA_CrouchSlide)
+		{
+			EIC->BindAction(InputConfig->IA_CrouchSlide, ETriggerEvent::Started, this, &UTFC_InputManagerComponent::HandleCrouchOrSlide);
+			EIC->BindAction(InputConfig->IA_CrouchSlide, ETriggerEvent::Completed, this, &UTFC_InputManagerComponent::HandleUnCrouch);
+		}
 	}
 }
+
 
 void UTFC_InputManagerComponent::Move(const FInputActionValue& Value)
 {
@@ -97,6 +114,13 @@ void UTFC_InputManagerComponent::StopJump(const FInputActionValue& Value)
 
 void UTFC_InputManagerComponent::StartSprint(const FInputActionValue& Value)
 {
+	bWantsToSprint = true;
+
+	if (bDebugInput)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("🏁 [Input] Sprint déclenché"));
+	}
+
 	if (CachedMovementComponent)
 	{
 		CachedMovementComponent->StartSprint();
@@ -105,6 +129,8 @@ void UTFC_InputManagerComponent::StartSprint(const FInputActionValue& Value)
 
 void UTFC_InputManagerComponent::StopSprint(const FInputActionValue& Value)
 {
+	bWantsToSprint = false;
+
 	if (CachedMovementComponent)
 	{
 		CachedMovementComponent->StopSprint();

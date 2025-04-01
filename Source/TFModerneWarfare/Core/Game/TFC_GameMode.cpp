@@ -11,6 +11,10 @@ ATFC_GameMode::ATFC_GameMode()
 	{
 		DefaultPawnClass = PlayerPawnBPClass.Class;
 	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[GameMode] ❌ BP_PlayerCharacter non trouvé !"));
+	}
 
 	PlayerControllerClass = ATFC_PlayerController::StaticClass();
 
@@ -20,6 +24,5 @@ ATFC_GameMode::ATFC_GameMode()
 void ATFC_GameMode::BeginPlay()
 {
 	Super::BeginPlay();
-
-	UE_LOG(LogTemp, Warning, TEXT("[GameMode] BeginPlay appeal."));
+	UE_LOG(LogTemp, Warning, TEXT("[GameMode] BeginPlay appelé."));
 }

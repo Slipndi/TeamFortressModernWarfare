@@ -14,10 +14,4 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
-	
-	UPROPERTY(EditDefaultsOnly, Category = "Data")
-	TObjectPtr<UDataTable> PlayerClassDataTable;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Data")
-	TObjectPtr<UDataTable> ArmorDataTable;
 };

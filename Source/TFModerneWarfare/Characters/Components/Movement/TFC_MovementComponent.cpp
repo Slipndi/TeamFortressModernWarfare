@@ -2,6 +2,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "TFModerneWarfare/Characters/Player/TFC_PlayerBase.h"
 #include "TimerManager.h"
+#include "Net/UnrealNetwork.h"
+#include "TFModerneWarfare/Core/Inputs/TFC_InputManagerComponent.h"
 
 UTFC_MovementComponent::UTFC_MovementComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -10,13 +12,15 @@ UTFC_MovementComponent::UTFC_MovementComponent(const FObjectInitializer& ObjectI
 	PrimaryComponentTick.TickGroup = TG_PostPhysics;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	SetIsReplicatedByDefault(true);
-	PrimaryComponentTick.TickInterval = 0.f;
+	PrimaryComponentTick.TickInterval = 1.f / 140.f;
 }
 
 void UTFC_MovementComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	CachePlayer();
+	CachedInputManager = Player->FindComponentByClass<UTFC_InputManagerComponent>();
+
 
 	if (!Player) return;
 
@@ -24,6 +28,12 @@ void UTFC_MovementComponent::BeginPlay()
 
 	ClientSimPosition = Player->GetActorLocation();
 	ClientSimVelocity = FVector::ZeroVector;
+
+	if (!GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("🎮 [MovementComp] Activation du Tick client pour simulation locale"));
+		SetComponentTickEnabled(true);
+	}
 }
 
 void UTFC_MovementComponent::CachePlayer()
@@ -88,8 +98,19 @@ void UTFC_MovementComponent::HandleCrouchOrSlide()
 		if (const FPlayerClassData* ClassData = Player->GetClassData())
 		{
 			UCharacterMovementComponent* MoveComp = Player->GetCharacterMovement();
+
 			MoveComp->BrakingFrictionFactor = 0.f;
-			MoveComp->Velocity += Player->GetActorForwardVector() * ClassData->SlideImpulse;
+
+			// ✅ Appliquer le SlideImpulse en local aussi (client autonome)
+			if (Player->GetLocalRole() == ROLE_AutonomousProxy)
+			{
+				ClientSimVelocity += Player->GetActorForwardVector() * ClassData->SlideImpulse;
+			}
+			else
+			{
+				MoveComp->Velocity += Player->GetActorForwardVector() * ClassData->SlideImpulse;
+			}
+
 			Player->GetWorldTimerManager().SetTimer(SlideTimerHandle, this, &UTFC_MovementComponent::EndSlide, ClassData->SlideDuration, false);
 		}
 		break;
@@ -103,6 +124,7 @@ void UTFC_MovementComponent::HandleCrouchOrSlide()
 		break;
 	}
 }
+
 
 void UTFC_MovementComponent::HandleUnCrouch()
 {
@@ -119,50 +141,205 @@ void UTFC_MovementComponent::HandleUnCrouch()
 void UTFC_MovementComponent::EndSlide()
 {
 	if (!Player) return;
-
 	Player->UnCrouch();
 	MovementState = EMovementState::Standing;
 	Player->GetCharacterMovement()->BrakingFrictionFactor = 2.f;
 }
 
+void UTFC_MovementComponent::OnRep_ServerValidatedFrame()
+{
+	UE_LOG(LogTemp, Warning, TEXT("📥 [RepFrame] Reçu frame #%d | Pos=%s | Vel=%s"),
+		ReplicatedServerFrame.FrameIndex,
+		*ReplicatedServerFrame.Position.ToCompactString(),
+		*ReplicatedServerFrame.Velocity.ToCompactString());
+
+	const FMovementFrame* MatchingFrame = MovementBuffer.FindByPredicate(
+		[this](const FMovementFrame& Frame)
+		{
+			return Frame.FrameIndex == ReplicatedServerFrame.FrameIndex;
+		});
+
+	if (!MatchingFrame)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[ROLLBACK] ❌ Frame #%d non trouvée dans le buffer client"), ReplicatedServerFrame.FrameIndex);
+		return;
+	}
+
+	const float Error = FVector::Dist(MatchingFrame->Position, ReplicatedServerFrame.Position);
+	if (Error < KINDA_SMALL_NUMBER)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ROLLBACK] ✅ Sync OK avec frame #%d (Erreur = %.2f)"), ReplicatedServerFrame.FrameIndex, Error);
+		return;
+	}
+
+	// Correction XY toujours
+	ClientSimPosition.X = ReplicatedServerFrame.Position.X;
+	ClientSimPosition.Y = ReplicatedServerFrame.Position.Y;
+
+	// Correction Z uniquement si trop d'écart
+	const float ZError = FMath::Abs(ReplicatedServerFrame.Position.Z - ClientSimPosition.Z);
+	if (ZError > MaxZCorrectionThreshold)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ROLLBACK] ⚠️ Correction Z forcée (%.1fcm)"), ZError);
+		ClientSimPosition.Z = ReplicatedServerFrame.Position.Z;
+	}
+
+	// Appliquer la nouvelle vitesse validée
+	ClientSimVelocity = ReplicatedServerFrame.Velocity;
+
+	const int32 StartIndex = MovementBuffer.IndexOfByPredicate(
+		[this](const FMovementFrame& Frame) { return Frame.FrameIndex == ReplicatedServerFrame.FrameIndex; });
+
+	for (int32 i = StartIndex + 1; i < MovementBuffer.Num(); ++i)
+	{
+		const FMovementFrame& Frame = MovementBuffer[i];
+		const float Speed = (Frame.MovementState == EMovementState::Sprinting) ? FinalSprintSpeed : FinalWalkSpeed;
+		const FVector Direction = Frame.InputVector.GetSafeNormal();
+		ClientSimVelocity = Direction * Speed;
+		ClientSimPosition += ClientSimVelocity * (1.f / 60.f);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[ROLLBACK] 🔁 Resimulation terminée. Position finale : %s"), *ClientSimPosition.ToCompactString());
+}
+
 void UTFC_MovementComponent::OnRep_ServerState()
 {
-	MovementState = ServerMovementState;
+	UE_LOG(LogTemp, Warning, TEXT("📦 [OnRep_ServerState] Position=%s | Vitesse=%s | State=%s"),
+		*ServerPosition.ToCompactString(),
+		*ServerVelocity.ToCompactString(),
+		*UEnum::GetValueAsString(ServerMovementState));
 
-	const float DeltaTime = GetWorld()->GetDeltaSeconds();
+	if (!Player || GetOwnerRole() != ROLE_SimulatedProxy) return;
 
-	ClientSimPosition = FMath::VInterpTo(
-		ClientSimPosition,
-		ServerPosition,
-		DeltaTime,
-		InterpSpeed);
+	const float PositionError = FVector::Dist(Player->GetActorLocation(), ServerPosition);
+
+	if (PositionError > BigGapThreshold)
+	{
+		Player->SetActorLocation(ServerPosition);
+	}
+	else
+	{
+		FVector InterpPos = FMath::VInterpTo(Player->GetActorLocation(), ServerPosition, GetWorld()->GetDeltaSeconds(), InterpSpeed);
+		Player->SetActorLocation(InterpPos);
+	}
 }
 
 void UTFC_MovementComponent::OnRep_ReplicatedSpeed()
 {
-	UE_LOG(LogTemp, Warning, TEXT("📶 Client vitesse répliquée : %.1f"), ReplicatedCurrentSpeed);
+	UE_LOG(LogTemp, Warning, TEXT("📶 [OnRep_ReplicatedSpeed] Speed=%.2f"), ReplicatedCurrentSpeed);
 }
 
 void UTFC_MovementComponent::OnRep_ReplicatedState()
 {
+	UE_LOG(LogTemp, Warning, TEXT("📦 [OnRep_ReplicatedState] State=%s"), *UEnum::GetValueAsString(ReplicatedMovementState));
+
+	if (!Player || GetOwnerRole() != ROLE_SimulatedProxy) return;
+
+	MovementState = ReplicatedMovementState;
+	const float Speed = (MovementState == EMovementState::Sprinting) ? FinalSprintSpeed : FinalWalkSpeed;
+	ReplicatedCurrentSpeed = Speed;
+	ClientSimVelocity = Player->GetActorForwardVector() * Speed;
+}
+
+void UTFC_MovementComponent::ServerUpdateMovementState_Implementation(EMovementState NewState)
+{
 	if (!Player) return;
 
-	const FVector InputVector = Player->GetLastMovementInputVector();
-
-	switch (ReplicatedMovementState)
+	// 🔐 Vérification simple côté serveur
+	if (NewState == EMovementState::Sprinting && !Player->CanSprint())
 	{
-	case EMovementState::Sprinting:
-		ClientSimVelocity = InputVector.GetSafeNormal() * FinalSprintSpeed;
-		break;
-	case EMovementState::Sliding:
-		if (const FPlayerClassData* ClassData = Player->GetClassData())
+		UE_LOG(LogTemp, Warning, TEXT("[SECURITY] Sprint refusé pour %s"), *Player->GetName());
+		return;
+	}
+
+	// 🔁 Tu peux étendre ici avec d'autres règles (ex : empêcher sliding sans sprint)
+	MovementState = NewState;
+}
+
+void UTFC_MovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (!Player) return;
+
+	if (GetOwner()->HasAuthority())
+	{
+		TickServerMovement();
+		return;
+	}
+
+	// ✳️ Simulation autonome ou interpolation (selon le rôle)
+	if (GetOwnerRole() == ROLE_AutonomousProxy)
+	{
+		const FVector InputVector = Player->GetLastMovementInputVector();
+
+		if (MovementState == EMovementState::Sliding)
 		{
-			ClientSimVelocity = InputVector.GetSafeNormal() * (FinalSprintSpeed + ClassData->SlideImpulse);
+			// ✅ En slide, on conserve la vélocité actuelle (déjà boostée par HandleCrouchOrSlide)
+			ClientSimPosition += ClientSimVelocity * DeltaTime;
 		}
-		break;
-	default:
-		ClientSimVelocity = InputVector.GetSafeNormal() * FinalWalkSpeed;
-		break;
+		else
+		{
+			const float Speed = (MovementState == EMovementState::Sprinting) ? FinalSprintSpeed : FinalWalkSpeed;
+			ClientSimVelocity = InputVector.GetSafeNormal() * Speed;
+			ClientSimPosition += ClientSimVelocity * DeltaTime;
+		}
+
+		FMovementFrame NewFrame;
+		NewFrame.FrameIndex = ClientFrameIndex++;
+		NewFrame.TimeStamp = GetWorld()->GetTimeSeconds();
+		NewFrame.Position = ClientSimPosition;
+		NewFrame.Velocity = ClientSimVelocity;
+		NewFrame.InputVector = InputVector;
+		NewFrame.MovementState = MovementState;
+
+		if (MovementBuffer.Num() >= MaxBufferSize)
+		{
+			MovementBuffer.RemoveAt(0);
+		}
+		MovementBuffer.Add(NewFrame);
+
+		const bool bIsAirborne = Player->GetCharacterMovement()->IsFalling();
+		const bool bClientThinksAirborne = (MovementState != EMovementState::Standing && MovementState != EMovementState::Crouching);
+
+		if (!bIsAirborne && !bClientThinksAirborne)
+		{
+			Player->SetActorLocation(ClientSimPosition);
+		}
+		else
+		{
+			// Correction partielle uniquement en XY, laisse le Z local
+			FVector CurrentLocation = Player->GetActorLocation();
+			FVector NewLocation = FVector(ClientSimPosition.X, ClientSimPosition.Y, CurrentLocation.Z);
+			Player->SetActorLocation(NewLocation);
+		}
+
+
+		//UE_LOG(LogTemp, Warning, TEXT("🟢 [CLIENT] Frame #%d | Pos=%s | Vel=%s | Input=%s | State=%s"),
+		//	NewFrame.FrameIndex,
+		//	*NewFrame.Position.ToCompactString(),
+		//	*NewFrame.Velocity.ToCompactString(),
+		//	*NewFrame.InputVector.ToCompactString(),
+		//	*UEnum::GetValueAsString(NewFrame.MovementState));
+
+		// ✅ Vérifie si on vient d'atterrir
+		const bool bIsCurrentlyInAir = Player->GetCharacterMovement()->IsFalling();
+
+		if (bWasInAir && !bIsCurrentlyInAir)
+		{
+			if (CachedInputManager && CachedInputManager->IsSprintHeld())
+			{
+				StartSprint();
+				UE_LOG(LogTemp, Warning, TEXT("⏩ [Movement] Reprise automatique du sprint à l'atterrissage"));
+			}
+		}
+
+		bWasInAir = bIsCurrentlyInAir;
+	}
+	else if (GetOwnerRole() == ROLE_SimulatedProxy)
+	{
+		FVector InterpVel = FMath::VInterpTo(Player->GetVelocity(), ClientSimVelocity, DeltaTime, InterpSpeed);
+		Player->GetCharacterMovement()->Velocity = InterpVel;
 	}
 }
 
@@ -170,85 +347,29 @@ void UTFC_MovementComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME_CONDITION(UTFC_MovementComponent, ServerPosition, COND_SkipOwner);
-	DOREPLIFETIME_CONDITION(UTFC_MovementComponent, ServerVelocity, COND_SkipOwner);
-	DOREPLIFETIME_CONDITION(UTFC_MovementComponent, ServerMovementState, COND_SkipOwner);
-	DOREPLIFETIME_CONDITION(UTFC_MovementComponent, ReplicatedCurrentSpeed, COND_SkipOwner);
-	DOREPLIFETIME_CONDITION(UTFC_MovementComponent, ReplicatedMovementState, COND_SkipOwner);
-}
-
-void UTFC_MovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	if (!Player || (Player->HasAuthority() && GetOwner()->GetNetMode() != NM_ListenServer))
-		return;
-
-	if (GetOwner()->HasAuthority())
-	{
-		TickServerMovement();
-	}
-	else
-	{
-		TickClientMovement(DeltaTime);
-	}
+	DOREPLIFETIME_CONDITION(UTFC_MovementComponent, ReplicatedServerFrame, COND_SkipOwner);
+	DOREPLIFETIME(UTFC_MovementComponent, ServerPosition);
+	DOREPLIFETIME(UTFC_MovementComponent, ServerVelocity);
+	DOREPLIFETIME(UTFC_MovementComponent, ServerMovementState);
+	DOREPLIFETIME(UTFC_MovementComponent, ReplicatedCurrentSpeed);
+	DOREPLIFETIME(UTFC_MovementComponent, ReplicatedMovementState);
 }
 
 void UTFC_MovementComponent::TickServerMovement()
 {
 	if (!Player) return;
 
-	ServerPosition = Player->GetActorLocation();
-	ReplicatedMovementState = MovementState;
+	FMovementFrame NewFrame;
+	NewFrame.FrameIndex = ServerFrameIndex++;
+	NewFrame.TimeStamp = GetWorld()->GetTimeSeconds();
+	NewFrame.Position = Player->GetActorLocation();
+	NewFrame.Velocity = Player->GetVelocity();
+	NewFrame.InputVector = Player->GetLastMovementInputVector();
+	NewFrame.MovementState = MovementState;
 
-	if (UCharacterMovementComponent* CharMove = Player->GetCharacterMovement())
-	{
-		ClientSimVelocity = CharMove->Velocity;
-	}
-	else
-	{
-		ServerVelocity = FVector::ZeroVector;
-	}
+	ReplicatedServerFrame = NewFrame;
 
-	ServerMovementState = MovementState;
-}
-
-void UTFC_MovementComponent::TickClientMovement(float DeltaTime)
-{
-	if (!Player) return;
-
-	const FVector InputVector = Player->GetLastMovementInputVector();
-	const FVector Forward = Player->GetActorForwardVector();
-
-	const FVector TargetVelocity = InputVector.GetSafeNormal() * ReplicatedCurrentSpeed * VisualSpeedMultiplier;
-	ClientSimVelocity = FMath::VInterpTo(ClientSimVelocity, TargetVelocity, DeltaTime, 6.f);
-
-	if (ReplicatedMovementState == EMovementState::Sprinting)
-	{
-		ClientSimVelocity += Forward * 75.f;
-	}
-	else if (ReplicatedMovementState == EMovementState::Sliding)
-	{
-		ClientSimVelocity += Forward * 150.f;
-	}
-
-	ClientSimPosition += ClientSimVelocity * DeltaTime;
-
-	const float DistToServerPos = FVector::Dist(ClientSimPosition, ServerPosition);
-
-	if (DistToServerPos > BigGapThreshold)
-	{
-		ClientSimPosition = FMath::Lerp(ClientSimPosition, ServerPosition, 0.5f);
-	}
-	else if (DistToServerPos > SmallGapThreshold)
-	{
-		ClientSimPosition = FMath::VInterpTo(ClientSimPosition, ServerPosition, DeltaTime, InterpSpeed);
-	}
-
-	UE_LOG(LogTemp, Warning, TEXT("🚀 Client Tick | InputVector: %s | Velocity: %s | Pos: %s"),
-		*InputVector.ToString(),
-		*ClientSimVelocity.ToString(),
-		*ClientSimPosition.ToString());
-
-	Player->SetActorLocation(ClientSimPosition, false, nullptr, ETeleportType::TeleportPhysics);
+	ServerPosition = NewFrame.Position;
+	ServerVelocity = NewFrame.Velocity;
+	ServerMovementState = NewFrame.MovementState;
 }

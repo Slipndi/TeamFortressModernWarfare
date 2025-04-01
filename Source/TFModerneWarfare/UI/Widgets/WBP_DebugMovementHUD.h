@@ -9,6 +9,9 @@
 
 class UTextBlock;
 class UScrollBox;
+class UTFC_HealthComponent;
+class UTFC_ArmorComponent;
+
 
 UCLASS()
 class TFMODERNEWARFARE_API UWBP_DebugMovementHUD : public UUserWidget
@@ -20,10 +23,22 @@ public:
 
 protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+	
+	UFUNCTION()
+	void AddDebugEntry(const FString& Label, const FString& Value);
+
+	UFUNCTION()
+	void ClearDynamicDebugEntries();
 
 private:
 	UPROPERTY()
 	ATFC_PlayerBase* PlayerRef;
+
+	UPROPERTY()
+	UTFC_HealthComponent* CachedHealthComponent;
+
+	UPROPERTY()
+	UTFC_ArmorComponent* CachedArmorComponent;
 
 	UPROPERTY()
 	UTextBlock* Text_MovementState;
@@ -31,8 +46,15 @@ private:
 	UPROPERTY(meta = (BindWidget))
 	UScrollBox* Scroll_ClassData;
 
+	UPROPERTY(meta = (BindWidget))
+	class UScrollBox* Scroll_LiveDebug;
+
 	UPROPERTY()
 	class UTFC_MovementComponent* MoveComp;
+	
+	UPROPERTY()
+	TMap<FString, UTextBlock*> DebugTextEntries;
+	
 
 	bool bDataBuilt = false;
 	EMovementState LastKnownMovementState = EMovementState::Standing;

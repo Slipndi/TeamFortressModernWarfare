@@ -10,7 +10,7 @@ void UTFC_GameStatics::EnsureDataTablesLoaded()
 	{
 		ArmorDataTable = Cast<UDataTable>(StaticLoadObject(
 			UDataTable::StaticClass(), nullptr,
-			TEXT("/Game/Data/DT_ArmorTypes.DT_ArmorTypes")
+			TEXT("/Script/Engine.DataTable'/Game/Blueprints/Data/DT_ArmorTypes.DT_ArmorTypes'")
 		));
 
 		if (!ArmorDataTable)
@@ -23,7 +23,7 @@ void UTFC_GameStatics::EnsureDataTablesLoaded()
 	{
 		ClassDataTable = Cast<UDataTable>(StaticLoadObject(
 			UDataTable::StaticClass(), nullptr,
-			TEXT("/Game/Data/DT_PlayerClasses.DT_PlayerClasses")
+			TEXT("/Game/Blueprints/Data/DT_PlayerClassData.DT_PlayerClassData")
 		));
 
 		if (!ClassDataTable)
@@ -36,9 +36,9 @@ void UTFC_GameStatics::EnsureDataTablesLoaded()
 const FArmorData* UTFC_GameStatics::GetArmorData(EArmorType ArmorType)
 {
 	EnsureDataTablesLoaded();
-	if (!ArmorDataTable) return nullptr;
+	if (!IsValid(ArmorDataTable)) return nullptr;
 
-	FName RowName = *UEnum::GetValueAsString(ArmorType).Replace(TEXT("EArmorType::"), TEXT(""));
+	FName RowName = *UEnum::GetDisplayValueAsText(ArmorType).ToString();
 	constexpr const TCHAR* Context = TEXT("UTFC_GameStatics::GetArmorData");
 
 	const FArmorData* Row = ArmorDataTable->FindRow<FArmorData>(RowName, Context);
@@ -52,9 +52,9 @@ const FArmorData* UTFC_GameStatics::GetArmorData(EArmorType ArmorType)
 const FPlayerClassData* UTFC_GameStatics::GetClassData(EPlayerClass PlayerClass)
 {
 	EnsureDataTablesLoaded();
-	if (!ClassDataTable) return nullptr;
+	if (!IsValid(ClassDataTable)) return nullptr;
 
-	FName RowName = *UEnum::GetValueAsString(PlayerClass).Replace(TEXT("EPlayerClass::"), TEXT(""));
+	FName RowName = *UEnum::GetDisplayValueAsText(PlayerClass).ToString();
 	constexpr const TCHAR* Context = TEXT("UTFC_GameStatics::GetClassData");
 
 	const FPlayerClassData* Row = ClassDataTable->FindRow<FPlayerClassData>(RowName, Context);

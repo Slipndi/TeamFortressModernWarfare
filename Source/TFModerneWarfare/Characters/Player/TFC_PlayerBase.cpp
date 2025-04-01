@@ -6,6 +6,7 @@
 #include "TFModerneWarfare/Characters/Components/Movement/TFC_MovementComponent.h"
 #include "TFModerneWarfare/Characters/Components/Armor/TFC_ArmorComponent.h"
 #include "Engine/DataTable.h"
+#include "TFModerneWarfare/Characters/Components/Health/TFC_HealthComponent.h"
 
 ATFC_PlayerBase::ATFC_PlayerBase()
 {
@@ -32,6 +33,8 @@ ATFC_PlayerBase::ATFC_PlayerBase()
 	MovementComponent = CreateDefaultSubobject<UTFC_MovementComponent>(TEXT("MovementComponent"));
 	ArmorComponent = CreateDefaultSubobject<UTFC_ArmorComponent>(TEXT("ArmorComponent"));
 	InputComponentManager = CreateDefaultSubobject<UTFC_InputManagerComponent>(TEXT("InputManagerComponent"));
+	HealthComponent = CreateDefaultSubobject<UTFC_HealthComponent>(TEXT("HealthComponent"));
+
 }
 
 void ATFC_PlayerBase::BeginPlay()
@@ -41,6 +44,16 @@ void ATFC_PlayerBase::BeginPlay()
 	if (ArmorComponent)
 	{
 		ArmorComponent->InitializeArmorFromClass(PlayerClassType);
+	}
+	if (HealthComponent)
+	{
+		UE_LOG(LogTemp, Log, TEXT("✅ HealthComponent initialisé pour %s, PV = %.1f"), *GetName(), HealthComponent->GetCurrentHealth());
+	}
+	if (HasAuthority())
+	{
+		UE_LOG(LogTemp, Log, TEXT("🧠 [PlayerBase] Serveur : joueur %s initialisé avec la classe %s"),
+			*GetName(),
+			*UEnum::GetDisplayValueAsText(PlayerClassType).ToString());
 	}
 }
 
@@ -57,4 +70,10 @@ const FPlayerClassData* ATFC_PlayerBase::GetClassData() const
 	const FName RowName = FName(*UEnum::GetDisplayValueAsText(PlayerClassType).ToString());
 
 	return ClassDataTable->FindRow<FPlayerClassData>(RowName, Context);
+}
+
+bool ATFC_PlayerBase::CanSprint() const
+{
+	if (!HealthComponent || HealthComponent->IsDead()) return false;
+	return true;
 }
