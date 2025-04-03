@@ -2,6 +2,7 @@
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Actor.h"
 #include "TFModerneWarfare/Characters/Components/Armor/TFC_ArmorComponent.h"
+#include "TFModerneWarfare/Characters/Components/Respawn/TFC_RespawnComponent.h"
 #include "TFModerneWarfare/Core/Game/TFC_GameStatics.h"
 #include "TFModerneWarfare/Characters/Player/TFC_PlayerBase.h"
 
@@ -113,6 +114,18 @@ void UTFC_HealthComponent::HandleDeath(const FDamageInfo& DamageInfo)
 	bIsDead = true;
 	OnHealthChanged.Broadcast(Health);
 	OnRep_Death();
+	
+	if (AActor* Owner = GetOwner())
+	{
+		if (UTFC_RespawnComponent* RespawnComp = Owner->FindComponentByClass<UTFC_RespawnComponent>())
+		{
+			RespawnComp->StartRespawnCountdown(5.0f); // ⏱️ Durée fixe (à rendre data-driven plus tard)
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[Health] ❌ RespawnComponent non trouvé sur %s"), *Owner->GetName());
+		}
+	}
 
 	UE_LOG(LogHealth, Warning, TEXT("[DEATH] %s was killed by %s | BoneHit: %s"),
 		*GetOwner()->GetName(),

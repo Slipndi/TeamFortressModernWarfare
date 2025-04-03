@@ -1,9 +1,11 @@
 ﻿#include "TFC_PlayerController.h"
 #include "EnhancedInputComponent.h"
 #include "TFModerneWarfare/Characters/Player/TFC_PlayerBase.h"
+#include "TFModerneWarfare/Core/Inputs/TFC_InputManagerComponent.h"
 #include "TFModerneWarfare/UI/Widgets/WBP_DebugMovementHUD.h"
 #include "TFModerneWarfare/UI/UWBP_MainHUD.h"
 
+DEFINE_LOG_CATEGORY_STATIC(PlayerControllerLog, Log, Warning);
 ATFC_PlayerController::ATFC_PlayerController()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Constructeur exécuté."));
@@ -15,7 +17,7 @@ void ATFC_PlayerController::BeginPlay()
 
 	if (IsLocalController())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Contrôleur local OK."));
+		UE_LOG(PlayerControllerLog, Warning, TEXT("[PlayerController] Contrôleur local OK."));
 
 		// 🔧 HUD Debug
 		if (HUDWidgetClass)
@@ -33,7 +35,7 @@ void ATFC_PlayerController::BeginPlay()
 		}
 		else
 		{
-			UE_LOG(LogTemp, Error, TEXT("❌ [HUD] HUDWidgetClass est NULL !"));
+			UE_LOG(PlayerControllerLog, Error, TEXT("❌ [HUD] HUDWidgetClass est NULL !"));
 		}
 
 		// 🔧 HUD Principal
@@ -56,5 +58,45 @@ void ATFC_PlayerController::BeginPlay()
 void ATFC_PlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
-	UE_LOG(LogTemp, Warning, TEXT("[PlayerController] SetupInputComponent appelé."));
+	UE_LOG(PlayerControllerLog, Warning, TEXT("[PlayerController] SetupInputComponent appelé."));
 }
+
+void ATFC_PlayerController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+
+	UE_LOG(LogTemp, Warning, TEXT("🎮 [PlayerController] OnPossess appelé pour : %s"), *InPawn->GetName());
+
+	// Rebind HUDs
+	if (ATFC_PlayerBase* PlayerRef = Cast<ATFC_PlayerBase>(InPawn))
+	{
+		if (IsValid(HUDWidget))
+		{
+			HUDWidget->SetPlayer(PlayerRef);
+		}
+
+		if (IsValid(MainHUDInstance))
+		{
+			MainHUDInstance->SetPlayerRef(PlayerRef);
+		}
+	}
+
+	if (ATFC_PlayerBase* TFCPlayer = Cast<ATFC_PlayerBase>(InPawn))
+	{
+		if (UTFC_InputManagerComponent* InputMgr = TFCPlayer->GetInputManager())
+		{
+			InputMgr->InitializeInputs(this);
+			UE_LOG(LogTemp, Warning, TEXT("🎮 [PlayerController] InputManager relancé après Possess"));
+		}
+	}
+
+	// ✅ Réactivation des inputs
+	SetupInputComponent();
+
+	// ✅ Réactivation de la caméra et de la souris
+	bShowMouseCursor = false;
+	SetInputMode(FInputModeGameOnly());
+
+	UE_LOG(PlayerControllerLog, Warning, TEXT("✅ [PlayerController] Inputs et souris réactivés après Possess()"));
+}
+

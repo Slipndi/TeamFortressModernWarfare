@@ -24,6 +24,10 @@ public:
 	/** Peut être lu par le MovementComponent */
 	bool IsSprintHeld() const { return bWantsToSprint; }
 
+	/** Réinitialise les inputs après respawn */
+	void InitializeInputs(APlayerController* NewController);
+
+	
 protected:
 	virtual void BeginPlay() override;
 
@@ -46,7 +50,8 @@ private:
 	// 🔁 Sprint toggle persistant
 	bool bWantsToSprint = false;
 
-	void SetupEnhancedInput();
+	/** Applique les bindings et le mapping context */
+	void ApplyInputMapping();
 
 	// Inputs
 	void Move(const FInputActionValue& Value);

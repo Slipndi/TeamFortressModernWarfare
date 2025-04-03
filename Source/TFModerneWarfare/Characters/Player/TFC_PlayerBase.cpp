@@ -7,7 +7,9 @@
 #include "TFModerneWarfare/Characters/Components/Armor/TFC_ArmorComponent.h"
 #include "Engine/DataTable.h"
 #include "TFModerneWarfare/Characters/Components/Health/TFC_HealthComponent.h"
+#include "TFModerneWarfare/Characters/Components/Respawn/TFC_RespawnComponent.h"
 
+DEFINE_LOG_CATEGORY_STATIC(TFCPlayerBase, Log, Warning);
 ATFC_PlayerBase::ATFC_PlayerBase()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -34,6 +36,8 @@ ATFC_PlayerBase::ATFC_PlayerBase()
 	ArmorComponent = CreateDefaultSubobject<UTFC_ArmorComponent>(TEXT("ArmorComponent"));
 	InputComponentManager = CreateDefaultSubobject<UTFC_InputManagerComponent>(TEXT("InputManagerComponent"));
 	HealthComponent = CreateDefaultSubobject<UTFC_HealthComponent>(TEXT("HealthComponent"));
+	RespawnComponent = CreateDefaultSubobject<UTFC_RespawnComponent>(TEXT("RespawnComponent"));
+
 
 }
 

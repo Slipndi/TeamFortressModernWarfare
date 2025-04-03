@@ -14,4 +14,10 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	
+	UFUNCTION()
+	void RespawnPlayer(AController* Controller);
+
+	UFUNCTION()
+	void HandleRespawnReady();
 };

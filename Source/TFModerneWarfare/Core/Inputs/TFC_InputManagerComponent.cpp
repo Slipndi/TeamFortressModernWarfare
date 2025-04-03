@@ -22,55 +22,13 @@ void UTFC_InputManagerComponent::BeginPlay()
 
 	OwnerPawn = Cast<APawn>(GetOwner());
 	if (!OwnerPawn) return;
-	CachedMovementComponent = OwnerPawn->FindComponentByClass<UTFC_MovementComponent>();
 
+	CachedMovementComponent = OwnerPawn->FindComponentByClass<UTFC_MovementComponent>();
 	OwnerController = Cast<APlayerController>(OwnerPawn->GetController());
 	if (!OwnerController || !InputConfig) return;
 
-	SetupEnhancedInput();
+	ApplyInputMapping();
 }
-
-void UTFC_InputManagerComponent::SetupEnhancedInput()
-{
-	if (!IsValid(InputConfig)) return;
-
-	if (ULocalPlayer* LocalPlayer = OwnerController->GetLocalPlayer())
-	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer))
-		{
-			Subsystem->ClearAllMappings();
-			Subsystem->AddMappingContext(InputConfig->PlayerContext, 0);
-		}
-	}
-
-	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(OwnerController->InputComponent))
-	{
-		if (InputConfig->IA_Move)
-			EIC->BindAction(InputConfig->IA_Move, ETriggerEvent::Triggered, this, &UTFC_InputManagerComponent::Move);
-
-		if (InputConfig->IA_Look)
-			EIC->BindAction(InputConfig->IA_Look, ETriggerEvent::Triggered, this, &UTFC_InputManagerComponent::Look);
-
-		if (InputConfig->IA_Jump)
-		{
-			EIC->BindAction(InputConfig->IA_Jump, ETriggerEvent::Started, this, &UTFC_InputManagerComponent::StartJump);
-			EIC->BindAction(InputConfig->IA_Jump, ETriggerEvent::Completed, this, &UTFC_InputManagerComponent::StopJump);
-		}
-
-		if (InputConfig->IA_Sprint)
-		{
-			EIC->BindAction(InputConfig->IA_Sprint, ETriggerEvent::Started, this, &UTFC_InputManagerComponent::StartSprint);
-			EIC->BindAction(InputConfig->IA_Sprint, ETriggerEvent::Completed, this, &UTFC_InputManagerComponent::StopSprint);
-		}
-
-		if (InputConfig->IA_CrouchSlide)
-		{
-			EIC->BindAction(InputConfig->IA_CrouchSlide, ETriggerEvent::Started, this, &UTFC_InputManagerComponent::HandleCrouchOrSlide);
-			EIC->BindAction(InputConfig->IA_CrouchSlide, ETriggerEvent::Completed, this, &UTFC_InputManagerComponent::HandleUnCrouch);
-		}
-	}
-}
-
 
 void UTFC_InputManagerComponent::Move(const FInputActionValue& Value)
 {
@@ -152,6 +110,53 @@ void UTFC_InputManagerComponent::HandleUnCrouch(const FInputActionValue& /*Value
 	if (CachedMovementComponent)
 	{
 		CachedMovementComponent->HandleUnCrouch();
+	}
+}
+
+void UTFC_InputManagerComponent::InitializeInputs(APlayerController* NewController)
+{
+	OwnerController = NewController;
+	ApplyInputMapping();
+}
+
+void UTFC_InputManagerComponent::ApplyInputMapping()
+{
+	if (!IsValid(OwnerController) || !IsValid(InputConfig)) return;
+
+	if (ULocalPlayer* LocalPlayer = OwnerController->GetLocalPlayer())
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer))
+		{
+			Subsystem->ClearAllMappings();
+			Subsystem->AddMappingContext(InputConfig->PlayerContext, 0);
+		}
+	}
+
+	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(OwnerController->InputComponent))
+	{
+		if (InputConfig->IA_Move)
+			EIC->BindAction(InputConfig->IA_Move, ETriggerEvent::Triggered, this, &UTFC_InputManagerComponent::Move);
+
+		if (InputConfig->IA_Look)
+			EIC->BindAction(InputConfig->IA_Look, ETriggerEvent::Triggered, this, &UTFC_InputManagerComponent::Look);
+
+		if (InputConfig->IA_Jump)
+		{
+			EIC->BindAction(InputConfig->IA_Jump, ETriggerEvent::Started, this, &UTFC_InputManagerComponent::StartJump);
+			EIC->BindAction(InputConfig->IA_Jump, ETriggerEvent::Completed, this, &UTFC_InputManagerComponent::StopJump);
+		}
+
+		if (InputConfig->IA_Sprint)
+		{
+			EIC->BindAction(InputConfig->IA_Sprint, ETriggerEvent::Started, this, &UTFC_InputManagerComponent::StartSprint);
+			EIC->BindAction(InputConfig->IA_Sprint, ETriggerEvent::Completed, this, &UTFC_InputManagerComponent::StopSprint);
+		}
+
+		if (InputConfig->IA_CrouchSlide)
+		{
+			EIC->BindAction(InputConfig->IA_CrouchSlide, ETriggerEvent::Started, this, &UTFC_InputManagerComponent::HandleCrouchOrSlide);
+			EIC->BindAction(InputConfig->IA_CrouchSlide, ETriggerEvent::Completed, this, &UTFC_InputManagerComponent::HandleUnCrouch);
+		}
 	}
 }
 

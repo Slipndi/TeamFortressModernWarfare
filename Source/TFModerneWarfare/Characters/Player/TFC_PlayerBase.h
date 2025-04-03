@@ -12,6 +12,7 @@
 class UCameraComponent;
 class UTFC_InputManagerComponent;
 class UTFC_MovementComponent;
+class UTFC_RespawnComponent;
 class UDataTable;
 
 UCLASS()
@@ -25,6 +26,9 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
 	const FPlayerClassData* GetClassData() const;
+	
+	UFUNCTION(BlueprintCallable)
+	UTFC_InputManagerComponent* GetInputManager() const { return InputComponentManager; }
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Class")
 	EPlayerClass PlayerClassType = EPlayerClass::Soldier;
@@ -62,4 +66,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UTFC_HealthComponent* HealthComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UTFC_RespawnComponent* RespawnComponent;
 };

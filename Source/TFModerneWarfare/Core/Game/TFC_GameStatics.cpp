@@ -10,7 +10,7 @@ void UTFC_GameStatics::EnsureDataTablesLoaded()
 	{
 		ArmorDataTable = Cast<UDataTable>(StaticLoadObject(
 			UDataTable::StaticClass(), nullptr,
-			TEXT("/Script/Engine.DataTable'/Game/Blueprints/Data/DT_ArmorTypes.DT_ArmorTypes'")
+			TEXT("/Script/Engine.DataTable'/Game/Data/DT_ArmorTypes.DT_ArmorTypes'")
 		));
 
 		if (!ArmorDataTable)
@@ -23,7 +23,7 @@ void UTFC_GameStatics::EnsureDataTablesLoaded()
 	{
 		ClassDataTable = Cast<UDataTable>(StaticLoadObject(
 			UDataTable::StaticClass(), nullptr,
-			TEXT("/Game/Blueprints/Data/DT_PlayerClassData.DT_PlayerClassData")
+			TEXT("/Script/Engine.DataTable'/Game/Data/DT_PlayerClassData.DT_PlayerClassData'")
 		));
 
 		if (!ClassDataTable)
