@@ -9,6 +9,7 @@
 #include "TFModerneWarfare/Core/Structs/FPlayerClassData.h"
 #include "TFC_PlayerBase.generated.h"
 
+class UTFC_WeaponSlotManagerComponent;
 class UCameraComponent;
 class UTFC_InputManagerComponent;
 class UTFC_MovementComponent;
@@ -23,6 +24,8 @@ class TFMODERNEWARFARE_API ATFC_PlayerBase : public ACharacter
 public:
 	ATFC_PlayerBase();
 
+	virtual void BeginPlay() override;
+	
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
 	const FPlayerClassData* GetClassData() const;
@@ -50,7 +53,6 @@ public:
 	void HandleLocalDeath();
 
 protected:
-	virtual void BeginPlay() override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* CameraComponent;
@@ -69,4 +71,8 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UTFC_RespawnComponent* RespawnComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapons", meta = (AllowPrivateAccess = "true"))
+	UTFC_WeaponSlotManagerComponent* WeaponSlotManager;
+	
 };

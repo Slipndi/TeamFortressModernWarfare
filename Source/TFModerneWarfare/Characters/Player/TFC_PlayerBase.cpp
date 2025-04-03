@@ -8,6 +8,8 @@
 #include "Engine/DataTable.h"
 #include "TFModerneWarfare/Characters/Components/Health/TFC_HealthComponent.h"
 #include "TFModerneWarfare/Characters/Components/Respawn/TFC_RespawnComponent.h"
+#include "TFModerneWarfare/Characters/Components/Weapons/TFC_WeaponSlotManagerComponent.h"
+#include "TFModerneWarfare/Core/Game/TFC_GameStatics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(TFCPlayerBase, Log, Warning);
 ATFC_PlayerBase::ATFC_PlayerBase()
@@ -37,8 +39,7 @@ ATFC_PlayerBase::ATFC_PlayerBase()
 	InputComponentManager = CreateDefaultSubobject<UTFC_InputManagerComponent>(TEXT("InputManagerComponent"));
 	HealthComponent = CreateDefaultSubobject<UTFC_HealthComponent>(TEXT("HealthComponent"));
 	RespawnComponent = CreateDefaultSubobject<UTFC_RespawnComponent>(TEXT("RespawnComponent"));
-
-
+	WeaponSlotManager = CreateDefaultSubobject<UTFC_WeaponSlotManagerComponent>(TEXT("WeaponSlotManager"));
 }
 
 void ATFC_PlayerBase::BeginPlay()
@@ -55,9 +56,29 @@ void ATFC_PlayerBase::BeginPlay()
 	}
 	if (HasAuthority())
 	{
-		UE_LOG(LogTemp, Log, TEXT("🧠 [PlayerBase] Serveur : joueur %s initialisé avec la classe %s"),
-			*GetName(),
-			*UEnum::GetDisplayValueAsText(PlayerClassType).ToString());
+		if (const FPlayerClassData* ClassData = UTFC_GameStatics::GetClassData(PlayerClassType))
+		{
+			if (ClassData->WeaponSet)
+			{
+				WeaponSlotManager->LoadWeaponSet(ClassData->WeaponSet);
+
+				// Log test
+				for (EWeaponSlot Slot : WeaponSlotManager->GetAvailableSlots())
+				{
+					UTFC_WeaponStatsDataAsset* Stats = WeaponSlotManager->GetWeaponStatsForSlot(Slot);
+					if (Stats)
+					{
+						UE_LOG(LogTemp, Warning, TEXT("🧪 [WeaponTest] Slot: %s → %s"),
+							*UEnum::GetValueAsString(Slot),
+							*Stats->GetWeaponName().ToString());
+					}
+					else
+					{
+						UE_LOG(LogTemp, Error, TEXT("❌ [WeaponTest] Aucun data asset trouvé pour le slot %s"), *UEnum::GetValueAsString(Slot));
+					}
+				}
+			}
+		}
 	}
 }
 

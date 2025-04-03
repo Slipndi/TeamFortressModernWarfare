@@ -4,6 +4,7 @@
 #include "Engine/DataTable.h"
 #include "TFModerneWarfare/Core/Enums/EArmorType.h"
 #include "TFModerneWarfare/Core/Enums/EPlayerClass.h"
+#include "TFModerneWarfare/Weapons/Data/TFC_WeaponDataAsset.h"
 #include "FPlayerClassData.generated.h" 
 
 USTRUCT(BlueprintType)
@@ -52,4 +53,7 @@ struct FPlayerClassData : public FTableRowBase
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MaxArmor = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapons")
+	TObjectPtr<UTFC_WeaponDataAsset> WeaponSet = nullptr;
 };
