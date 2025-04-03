@@ -10,10 +10,12 @@
 #include "../Structs/FPlayerClassData.h"
 #include "TFModerneWarfare/Characters/Player/TFC_PlayerBase.h"
 #include "TFModerneWarfare/Characters/Components/Movement/TFC_MovementComponent.h"
+#include "TFModerneWarfare/Characters/Components/Weapons/TFC_WeaponSlotManagerComponent.h"
 
 UTFC_InputManagerComponent::UTFC_InputManagerComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	SetIsReplicatedByDefault(true); 
 }
 
 void UTFC_InputManagerComponent::BeginPlay()
@@ -104,7 +106,6 @@ void UTFC_InputManagerComponent::HandleCrouchOrSlide(const FInputActionValue& /*
 	}
 }
 
-
 void UTFC_InputManagerComponent::HandleUnCrouch(const FInputActionValue& /*Value*/)
 {
 	if (CachedMovementComponent)
@@ -157,6 +158,30 @@ void UTFC_InputManagerComponent::ApplyInputMapping()
 			EIC->BindAction(InputConfig->IA_CrouchSlide, ETriggerEvent::Started, this, &UTFC_InputManagerComponent::HandleCrouchOrSlide);
 			EIC->BindAction(InputConfig->IA_CrouchSlide, ETriggerEvent::Completed, this, &UTFC_InputManagerComponent::HandleUnCrouch);
 		}
+		
+		if (InputConfig->IA_Fire)
+		{
+			EIC->BindAction(InputConfig->IA_Fire, ETriggerEvent::Triggered, this, &UTFC_InputManagerComponent::Fire);
+		}
+	}
+}
+
+void UTFC_InputManagerComponent::Fire(const FInputActionValue& /*Value*/)
+{
+	if (!OwnerPawn) return;
+
+	UE_LOG(LogTemp, Warning, TEXT("🔥 [Input] Touche de tir détectée"));
+
+	UTFC_WeaponSlotManagerComponent* WeaponManager = OwnerPawn->FindComponentByClass<UTFC_WeaponSlotManagerComponent>();
+	if (!WeaponManager) return;
+
+	if (OwnerPawn->HasAuthority())
+	{
+		WeaponManager->FireCurrentWeapon(); // Pour serveur local
+	}
+	else
+	{
+		WeaponManager->Server_FireCurrentWeapon(); // Demande au serveur
 	}
 }
 

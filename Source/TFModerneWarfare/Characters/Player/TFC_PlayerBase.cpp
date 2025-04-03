@@ -45,7 +45,7 @@ ATFC_PlayerBase::ATFC_PlayerBase()
 void ATFC_PlayerBase::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	if (ArmorComponent)
 	{
 		ArmorComponent->InitializeArmorFromClass(PlayerClassType);
@@ -54,33 +54,33 @@ void ATFC_PlayerBase::BeginPlay()
 	{
 		UE_LOG(LogTemp, Log, TEXT("✅ HealthComponent initialisé pour %s, PV = %.1f"), *GetName(), HealthComponent->GetCurrentHealth());
 	}
-	if (HasAuthority())
-	{
-		if (const FPlayerClassData* ClassData = UTFC_GameStatics::GetClassData(PlayerClassType))
-		{
-			if (ClassData->WeaponSet)
-			{
-				WeaponSlotManager->LoadWeaponSet(ClassData->WeaponSet);
 
-				// Log test
-				for (EWeaponSlot Slot : WeaponSlotManager->GetAvailableSlots())
-				{
-					UTFC_WeaponStatsDataAsset* Stats = WeaponSlotManager->GetWeaponStatsForSlot(Slot);
-					if (Stats)
-					{
-						UE_LOG(LogTemp, Warning, TEXT("🧪 [WeaponTest] Slot: %s → %s"),
-							*UEnum::GetValueAsString(Slot),
-							*Stats->GetWeaponName().ToString());
-					}
-					else
-					{
-						UE_LOG(LogTemp, Error, TEXT("❌ [WeaponTest] Aucun data asset trouvé pour le slot %s"), *UEnum::GetValueAsString(Slot));
-					}
-				}
+	// 📌 Chargement des armes pour le serveur ET le client
+	const FPlayerClassData* ClassData = UTFC_GameStatics::GetClassData(PlayerClassType);
+	if (ClassData && ClassData->WeaponSet && WeaponSlotManager)
+	{
+		WeaponSlotManager->LoadWeaponSet(ClassData->WeaponSet);
+
+		UE_LOG(LogTemp, Warning, TEXT("🎯 LoadWeaponSet() appelé dans BeginPlay [HasAuthority=%s]"),
+			HasAuthority() ? TEXT("true") : TEXT("false"));
+
+		for (EWeaponSlot Slot : WeaponSlotManager->GetAvailableSlots())
+		{
+			if (UTFC_WeaponStatsDataAsset* Stats = WeaponSlotManager->GetWeaponStatsForSlot(Slot))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("🧪 [WeaponTest] Slot: %s → %s"),
+					*UEnum::GetValueAsString(Slot),
+					*Stats->GetWeaponName().ToString());
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("❌ [WeaponTest] Aucun data asset trouvé pour le slot %s"),
+					*UEnum::GetValueAsString(Slot));
 			}
 		}
 	}
 }
+
 
 void ATFC_PlayerBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {

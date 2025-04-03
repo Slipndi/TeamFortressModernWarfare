@@ -52,6 +52,7 @@ private:
 
 	/** Applique les bindings et le mapping context */
 	void ApplyInputMapping();
+	void Fire(const FInputActionValue&);
 
 	// Inputs
 	void Move(const FInputActionValue& Value);

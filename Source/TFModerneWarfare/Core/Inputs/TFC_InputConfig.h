@@ -29,4 +29,7 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
 	UInputAction* IA_CrouchSlide;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input|Combat")
+	UInputAction* IA_Fire;
 };

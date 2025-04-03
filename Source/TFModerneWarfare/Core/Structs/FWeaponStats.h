@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "TFModerneWarfare/Core/Enums/EDamageFalloffType.h"
 #include "TFModerneWarfare/Core/Enums/EDamageType.h"
 #include "TFModerneWarfare/Core/Enums/EWeaponSlot.h"
 #include "TFModerneWarfare/Core/Enums/EWeaponType.h"
@@ -37,13 +38,28 @@ struct FWeaponStats
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	int32 ProjectilesPerShot = 1;
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float BaseDamage = 1.0f;
-
+		
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	EDamageType DamageType = EDamageType::Shells;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TSubclassOf<AActor> WeaponActorClass;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
+	float BaseDamage = 20.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage")
+	bool bUseDamageFalloff = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (EditCondition = "bUseDamageFalloff"))
+	float EffectiveRange = 800.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (EditCondition = "bUseDamageFalloff"))
+	float MaxRange = 1500.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Damage", meta = (EditCondition = "bUseDamageFalloff"))
+	EDamageFalloffType FalloffType = EDamageFalloffType::Linear;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TSubclassOf<UDamageType> DamageTypeClass;
 };
